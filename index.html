@@ -1,0 +1,1770 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Arial:wght@400;700&family=Verdana:wght@400;700&family=Times+New+Roman:wght@400;700&family=Courier+New:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-grey background */
+            color: #334155; /* Dark grey text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #1e3a8a; /* Dark blue header */
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-input-label {
+            background-color: #2563eb; /* Blue button */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .file-input-label:hover {
+            background-color: #1d4ed8; /* Darker blue on hover */
+        }
+        .file-input {
+            display: none; /* Hide native file input */
+        }
+        .page-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .nav-button {
+            background-color: #475569; /* Dark grey button */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .nav-button:hover:not(:disabled) {
+            background-color: #334155; /* Darker grey on hover */
+        }
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .canvas-container {
+            position: relative;
+            border: 1px solid #cbd5e1; /* Light grey border */
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #f8fafc; /* Very light blue background */
+            margin: 20px auto;
+            max-width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #pdfCanvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Allows mouse events to pass through to the canvas below */
+        }
+        .tools-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .tool-button {
+            background-color: #e2e8f0; /* Light grey tool button */
+            color: #475569; /* Dark grey text */
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-weight: 600;
+        }
+        .tool-button.active, .tool-button:hover {
+            background-color: #93c5fd; /* Light blue active/hover */
+            color: #1e3a8a; /* Dark blue text */
+            transform: translateY(-2px);
+        }
+        .tool-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .download-button {
+            background-color: #10b981; /* Green button */
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .download-button:hover {
+            background-color: #059669; /* Darker green on hover */
+            transform: translateY(-2px);
+        }
+        /* Custom message box styling */
+        .custom-message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 1000; /* Ensure it's on top */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            max-width: 90%;
+            width: 350px;
+        }
+        .custom-message-box p {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        .custom-message-box button {
+            background-color: #3b82f6; /* Blue button */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .custom-message-box button:hover {
+            background-color: #2563eb; /* Darker blue on hover */
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001; /* Should be higher than message box if it needs to cover it */
+            color: white;
+            font-size: 1.5rem;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey border */
+            border-top: 8px solid #3498db; /* Blue spinner part */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom styles for textarea */
+        textarea.text-editor-input {
+            position: absolute;
+            resize: both; /* Allow manual resizing */
+            overflow: hidden; /* Hide scrollbars by default, as we'll auto-resize */
+            border: 1px dashed #3b82f6;
+            padding: 5px;
+            background-color: rgba(255,255,255,0.9);
+            z-index: 10;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+            word-wrap: break-word; /* Break long words */
+            font-family: 'Inter', sans-serif; /* Ensure consistent font */
+            line-height: 1.2; /* Adjust line height for better appearance */
+        }
+        /* Hide signature related options by default */
+        .signature-options-group {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading/Processing PDF...</p>
+    </div>
+
+    <div class="container">
+        <h1 class="header text-3xl font-bold">Advanced PDF Editor</h1>
+
+        <div class="input-group">
+            <div class="file-input-wrapper">
+                <label for="pdfUpload" class="file-input-label">Upload PDF</label>
+                <input type="file" id="pdfUpload" accept=".pdf" class="file-input">
+                <span id="fileName" class="text-gray-600">No file chosen</span>
+            </div>
+        </div>
+
+        <div class="tools-panel">
+            <button id="toolEraser" class="tool-button" disabled>Remove Text (Eraser)</button>
+            <div class="flex items-center gap-2">
+                <label for="eraserSize" class="text-sm font-semibold">Eraser Size:</label>
+                <input type="range" id="eraserSize" min="5" max="50" value="20" class="w-24" disabled>
+                <span id="eraserSizeValue" class="text-sm">20px</span>
+            </div>
+            <button id="toolAddText" class="tool-button" disabled>Add Text</button>
+            <input type="color" id="textColorPicker" value="#000000" class="tool-button p-1" title="Text Color">
+            <select id="fontSizeSelect" class="tool-button p-1" title="Font Size">
+                <option value="12">12px</option>
+                <option value="16" selected>16px</option>
+                <option value="20">20px</option>
+                <option value="24">24px</option>
+                <option value="30">30px</option>
+                <option value="36">36px</option>
+                <option value="48">48px</option>
+            </select>
+            <select id="fontFamilySelect" class="tool-button p-1" title="Font Style">
+                <option value="Inter">Inter</option>
+                <option value="Arial">Arial</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Courier New">Courier New</option>
+            </select>
+            <button id="boldBtn" class="tool-button font-bold" disabled>B</button>
+            <button id="italicBtn" class="tool-button italic" disabled>I</button>
+            
+            <input type="file" id="imageUpload" accept="image/*" class="file-input">
+            <label for="imageUpload" class="tool-button">Upload Photo (General)</label>
+
+            <button id="toolAddSignature" class="tool-button" disabled>Add Signature</button>
+            <input type="file" id="signatureUpload" accept="image/*" class="file-input">
+            <label for="signatureUpload" class="tool-button signature-upload-label" style="display: none;">Upload Signature Image</label>
+
+            <button id="undoBtn" class="tool-button" disabled>Undo</button>
+            <button id="redoBtn" class="tool-button" disabled>Redo</button>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="pdfCanvas"></canvas>
+            <canvas id="overlayCanvas"></canvas> </div>
+
+        <div class="page-navigation">
+            <button id="prevPage" class="nav-button" disabled>Previous Page</button>
+            <span id="pageInfo" class="text-lg font-semibold">Page: 0/0</span>
+            <button id="nextPage" class="nav-button" disabled>Next Page</button>
+        </div>
+
+        <div class="flex justify-center mt-8">
+            <button id="downloadPdf" class="download-button" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                Download Edited PDF
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        console.log("Script is being parsed."); // Debugging log
+        // PDF.js worker path set kiya gaya hai
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pdfDoc = null; // Loaded PDF document object
+        let currentPageNum = 1; // Current page number jo display ho rahi hai
+        let totalPages = 0; // PDF mein total pages ki sankhya
+        const scale = 1.5; // Canvas par PDF pages render karne ke liye scale factor
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d'); // Canvas ke liye 2D rendering context
+
+        const overlayCanvas = document.getElementById('overlayCanvas'); // Live brush preview ke liye overlay canvas
+        const overlayCtx = overlayCanvas.getContext('2d'); // Overlay canvas ke liye 2D rendering context
+
+        let currentTool = null; // Filhaal active tool: 'eraser', 'addText', 'addImage', 'addSignature'
+        let isDrawing = false; // Flag jo batata hai ki drawing (signature) ya erasing chal rahi hai (ab sirf eraser ke liye)
+        let isDragging = false; // Selected objects ko drag karne ke liye flag
+        let isResizing = false; // Selected objects ko resize karne ke liye flag
+        let lastX = 0; // Drawing/dragging operations ke liye last X coordinate
+        let lastY = 0; // Drawing/dragging operations ke liye last Y coordinate
+        let dragOffsetX = 0; // Dragging ke liye object ke top-left se offset
+        let dragOffsetY = 0; // Dragging ke liye object ke top-left se offset
+        let resizeHandle = null; // Batata hai ki kaun sa resize handle drag kiya ja raha hai ('nw', 'n', etc.)
+
+        let textInput = null; // Dynamically created text input element ka reference
+
+        let selectedObject = null; // Filhaal selected text ya image object dragging/resizing ke liye
+
+        // Naye text ke liye default styles (ab bhi 'Add Text' tool ke liye zaroori)
+        let currentFontFamily = 'Inter';
+        let currentIsBold = false;
+        let currentIsItalic = false;
+
+        // Har page ke data ko store karne ke liye array, jismein uska base image aur edited objects shamil hain
+        /*
+        editedPageData mein har page ke liye ek object hoga jaise:
+        {
+            baseImageCanvas: HTMLCanvasElement, // PDF page + eraser marks ka initial render
+            textObjects: [], // {id, x, y, text, fontSize, color, width, height, fontFamily, isBold, isItalic} ka array
+            imageObjects: [], // {id, x, y, imgElement, width, height} ka array (ab signatures ko images ke roop mein shamil karta hai)
+            history: [], // {textObjects, imageObjects, baseImageCanvas (data URL ke roop mein)} ki deep copies ka array
+            historyIndex: -1
+        }
+        */
+        let editedPageData = [];
+
+        // DOM element references
+        const pdfUploadInput = document.getElementById('pdfUpload');
+        const fileNameSpan = document.getElementById('fileName');
+        const pageInfoSpan = document.getElementById('pageInfo');
+        const prevPageBtn = document.getElementById('prevPage');
+        const nextPageBtn = document.getElementById('nextPage');
+        const downloadPdfBtn = document.getElementById('downloadPdf');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        // Tool button references
+        const toolEraserBtn = document.getElementById('toolEraser');
+        const eraserSizeSlider = document.getElementById('eraserSize');
+        const eraserSizeValueSpan = document.getElementById('eraserSizeValue');
+        const toolAddTextBtn = document.getElementById('toolAddText');
+        const toolAddSignatureBtn = document.getElementById('toolAddSignature');
+        const textColorPicker = document.getElementById('textColorPicker');
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        const fontFamilySelect = document.getElementById('fontFamilySelect');
+        const boldBtn = document.getElementById('boldBtn');
+        const italicBtn = document.getElementById('italicBtn');
+        const imageUploadInput = document.getElementById('imageUpload');
+        const signatureUploadInput = document.getElementById('signatureUpload'); // Naya signature upload input
+        const signatureUploadLabel = document.querySelector('.signature-upload-label');
+
+
+        // Global variable jo delete button DOM element ko hold karta hai
+        let deleteButton = null;
+
+        // --- Utility Functions ---
+
+        /**
+         * Objects ke liye unique ID generate karta hai.
+         * @returns {string} Ek unique ID.
+         */
+        function generateUniqueId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+
+        /**
+         * User ko custom message box dikhata hai.
+         * @param {string} message - Dikhane wala message.
+         */
+        function showMessageBox(message) {
+            // Kisi bhi existing message box ko hatata hai taaki sirf ek hi maujood ho
+            const existingMessageBox = document.querySelector('.custom-message-box');
+            if (existingMessageBox) {
+                existingMessageBox.remove();
+            }
+
+            const messageBox = document.createElement('div');
+            messageBox.className = 'custom-message-box';
+            messageBox.innerHTML = `
+                <p>${message}</p>
+                <button class="message-box-ok-button">OK</button>
+            `;
+            document.body.appendChild(messageBox);
+
+            // Is messageBox ke andar button par event listener attach karta hai
+            const okButton = messageBox.querySelector('.message-box-ok-button');
+            if (okButton) { // Sunishchit kare ki button event listener add karne se pehle maujood hai
+                okButton.addEventListener('click', function() {
+                    messageBox.remove(); // Specific messageBox ko hatata hai
+                });
+            } else {
+                console.error("Error: OK button not found in message box.");
+            }
+        }
+
+        /**
+         * Loading overlay ko dikhata hai, optional message ke saath.
+         * @param {string} message - Loading overlay par dikhane wala message.
+         */
+        function showLoading(message = "Loading/Processing PDF...") {
+            loadingOverlay.querySelector('p').textContent = message;
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        /**
+         * Loading overlay ko chhupata hai.
+         */
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        /**
+         * Sabhi tool buttons aur download button ko enable ya disable karta hai.
+         * @param {boolean} enabled - Enable karne ke liye True, disable karne ke liye False.
+         */
+        function setToolButtonsEnabled(enabled) {
+            toolEraserBtn.disabled = !enabled;
+            eraserSizeSlider.disabled = !enabled;
+            toolAddTextBtn.disabled = !enabled;
+            toolAddSignatureBtn.disabled = !enabled;
+            downloadPdfBtn.disabled = !enabled;
+            imageUploadInput.disabled = !enabled;
+
+            // Text styling options ki visibility aur disabled state manage karta hai
+            textColorPicker.disabled = !enabled;
+            fontSizeSelect.disabled = !enabled;
+            fontFamilySelect.disabled = !enabled;
+            boldBtn.disabled = !enabled;
+            italicBtn.disabled = !enabled;
+            // 'Add Text' tool selection ke aadhar par text styling options ko chhupata/dikhata hai
+            updateTextStyleToolsVisibility();
+
+            // Signature upload option ki visibility aur disabled state manage karta hai
+            signatureUploadInput.disabled = !enabled;
+            // 'Add Signature' tool selection ke aadhar par signature upload label ko chhupata/dikhata hai
+            updateSignatureToolsVisibility();
+
+
+            // General image upload label ke liye styling adjust karta hai
+            const imageUploadLabel = imageUploadInput.parentElement.querySelector('label[for="imageUpload"]');
+            if (imageUploadLabel) {
+                imageUploadLabel.style.opacity = enabled ? '1' : '0.6';
+                imageUploadLabel.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            }
+            
+            updateUndoRedoButtons(); // Undo/redo buttons ko bhi update karta hai
+            updateTextStyleButtons(); // Bold/italic button states ko update karta hai
+        }
+
+        /**
+         * Sabhi tool buttons ke active styling ko reset karta hai.
+         */
+        function resetToolButtonStyles() {
+            [toolEraserBtn, toolAddTextBtn, toolAddSignatureBtn].forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        /**
+         * Canvas ke sapeksh mouse coordinates prapt karta hai.
+         * @param {MouseEvent} e - Mouse event.
+         * @returns {{x: number, y: number}} Coordinates.
+         */
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        // --- Undo/Redo Functions ---
+
+        /**
+         * Active page ke current state ko uski history mein save karta hai.
+         * Har mahatvapurna edit ke baad is function ko call karna chahiye.
+         */
+        function saveCurrentPageState() {
+            if (!editedPageData[currentPageNum - 1]) return;
+
+            const page = editedPageData[currentPageNum - 1];
+
+            // Agar naya action kiya gaya hai to redo history ko clear karta hai
+            if (page.historyIndex < page.history.length - 1) {
+                page.history = page.history.slice(0, page.historyIndex + 1);
+            }
+
+            // Current page ke editable data ki deep copy
+            const currentEditableState = {
+                textObjects: JSON.parse(JSON.stringify(page.textObjects)),
+                imageObjects: [], // Image elements ko special handling ki zaroorat hoti hai
+                baseImageCanvasData: page.baseImageCanvas.toDataURL() // Canvas ko data URL ke roop mein save karta hai
+            };
+
+            // Image elements ki deep copy unke src se recreate karke
+            page.imageObjects.forEach(imgObj => {
+                currentEditableState.imageObjects.push({
+                    id: imgObj.id,
+                    x: imgObj.x,
+                    y: imgObj.y,
+                    width: imgObj.width,
+                    height: imgObj.height,
+                    src: imgObj.imgElement.src, // Image source store karta hai
+                    isSignature: imgObj.isSignature // Batata hai ki kya yeh signature hai
+                });
+            });
+
+            page.history.push(currentEditableState);
+            page.historyIndex++;
+            updateUndoRedoButtons();
+        }
+
+        /**
+         * Historical state ko current page par apply karta hai.
+         * @param {object} state - Apply karne wala state object.
+         */
+        async function applyPageState(state) {
+            const page = editedPageData[currentPageNum - 1];
+
+            // BaseImageCanvas ko data URL se restore karta hai
+            const img = new Image();
+            img.onload = () => {
+                page.baseImageCanvas.getContext('2d').clearRect(0, 0, page.baseImageCanvas.width, page.baseImageCanvas.height);
+                page.baseImageCanvas.getContext('2d').drawImage(img, 0, 0);
+
+                // Dusre objects ko restore karta hai
+                page.textObjects = JSON.parse(JSON.stringify(state.textObjects));
+                page.imageObjects = [];
+
+                // ImageObjects ke liye image elements ko recreate karta hai
+                let imagesLoadedCount = 0;
+                const totalImages = state.imageObjects.length;
+
+                if (totalImages === 0) {
+                    renderCurrentPageEdits();
+                } else {
+                    state.imageObjects.forEach(imgObj => {
+                        const newImg = new Image();
+                        newImg.onload = () => {
+                            page.imageObjects.push({
+                                id: imgObj.id,
+                                x: imgObj.x,
+                                y: imgObj.y,
+                                width: imgObj.width,
+                                height: imgObj.height,
+                                imgElement: newImg,
+                                isSignature: imgObj.isSignature // Signature flag restore karta hai
+                            });
+                            imagesLoadedCount++;
+                            if (imagesLoadedCount === totalImages) {
+                                renderCurrentPageEdits();
+                            }
+                        };
+                        newImg.src = imgObj.src;
+                    });
+                }
+            };
+            img.src = state.baseImageCanvasData;
+
+            updateUndoRedoButtons();
+        }
+
+        /**
+         * Current page par last action ko undo karta hai.
+         */
+        function undo() {
+            const page = editedPageData[currentPageNum - 1];
+            if (page.historyIndex > 0) {
+                page.historyIndex--;
+                applyPageState(page.history[page.historyIndex]);
+            }
+        }
+
+        /**
+         * Current page par last undone action ko redo karta hai.
+         */
+        function redo() {
+            const page = editedPageData[currentPageNum - 1];
+            if (page.historyIndex < page.history.length - 1) {
+                page.historyIndex++;
+                applyPageState(page.history[page.historyIndex]);
+            }
+        }
+
+        /**
+         * Undo/redo buttons ki disabled state ko update karta hai.
+         */
+        function updateUndoRedoButtons() {
+            if (!editedPageData[currentPageNum - 1]) {
+                undoBtn.disabled = true;
+                redoBtn.disabled = true;
+                return;
+            }
+            const page = editedPageData[currentPageNum - 1];
+            undoBtn.disabled = page.historyIndex <= 0;
+            redoBtn.disabled = page.historyIndex >= page.history.length - 1;
+        }
+
+        /**
+         * Bold aur italic buttons ki active state ko update karta hai
+         * filhaal selected text object ke aadhar par.
+         */
+        function updateTextStyleButtons() {
+            if (selectedObject && selectedObject.type === 'text') {
+                boldBtn.classList.toggle('active', selectedObject.isBold);
+                italicBtn.classList.toggle('active', selectedObject.isItalic);
+                textColorPicker.value = selectedObject.color;
+                fontSizeSelect.value = selectedObject.fontSize;
+                fontFamilySelect.value = selectedObject.fontFamily;
+            } else {
+                // Agar koi text object selected nahi hai, to buttons ko default par reset karta hai
+                boldBtn.classList.remove('active');
+                italicBtn.classList.remove('active');
+                // Aur naye text ke liye current global styles dikhata hai
+                textColorPicker.value = '#000000'; // Default black
+                fontSizeSelect.value = '16'; // Default 16px
+                fontFamilySelect.value = 'Inter'; // Default Inter
+            }
+        }
+
+        /**
+         * Current tool ya selected object ke aadhar par text styling options ko chhupata/dikhata hai.
+         */
+        function updateTextStyleToolsVisibility() {
+            const isTextToolActive = currentTool === 'addText' || (selectedObject && selectedObject.type === 'text');
+            textColorPicker.style.display = isTextToolActive ? '' : 'none';
+            fontSizeSelect.style.display = isTextToolActive ? '' : 'none';
+            fontFamilySelect.style.display = isTextToolActive ? '' : 'none';
+            boldBtn.style.display = isTextToolActive ? '' : 'none';
+            italicBtn.style.display = isTextToolActive ? '' : 'none';
+        }
+
+        /**
+         * Current tool ke aadhar par signature upload option ko chhupata/dikhata hai.
+         */
+        function updateSignatureToolsVisibility() {
+            const isSignatureToolActive = currentTool === 'addSignature';
+            signatureUploadLabel.style.display = isSignatureToolActive ? '' : 'none';
+            signatureUploadInput.style.display = isSignatureToolActive ? '' : 'none'; // Input ko hidden rakhta hai lekin label se control karta hai
+        }
+
+        // --- PDF Rendering Functions ---
+
+        /**
+         * Current page ke base image aur sabhi add kiye gaye objects (text, images) ko
+         * main canvas par render karta hai. Yeh kisi bhi edits ya history navigation ke baad call kiya jata hai.
+         */
+        function renderCurrentPageEdits() {
+            if (!editedPageData[currentPageNum - 1]) return;
+
+            const page = editedPageData[currentPageNum - 1];
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Main canvas ko clear karta hai
+
+            // Base image (PDF render + eraser marks) draw karta hai
+            if (page.baseImageCanvas) {
+                ctx.drawImage(page.baseImageCanvas, 0, 0);
+            }
+
+            // Sabhi text objects draw karta hai
+            page.textObjects.forEach(obj => {
+                let fontStyle = '';
+                if (obj.isItalic) fontStyle += 'italic ';
+                if (obj.isBold) fontStyle += 'bold ';
+                ctx.font = `${fontStyle}${obj.fontSize}px ${obj.fontFamily}`;
+                ctx.fillStyle = obj.color;
+
+                // Accurate bounding box ke liye text width measure karta hai
+                const tempCtx = document.createElement('canvas').getContext('2d');
+                tempCtx.font = `${fontStyle}${obj.fontSize}px ${obj.fontFamily}`;
+
+                const lines = obj.text.split('\n');
+                let maxWidth = 0;
+                lines.forEach(line => {
+                    const textMetrics = tempCtx.measureText(line);
+                    if (textMetrics.width > maxWidth) {
+                        maxWidth = textMetrics.width;
+                    }
+                });
+                obj.width = maxWidth;
+                obj.height = obj.fontSize * 1.2 * lines.length; // Approximate height, multiple lines ko dhyan mein rakhte hue
+
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, obj.x, obj.y + obj.fontSize * 0.75 + (obj.fontSize * 1.2 * index)); // Baseline aur multiple lines ke liye Y adjust karta hai
+                });
+            });
+
+            // Sabhi image objects (signatures shamil hain) draw karta hai
+            page.imageObjects.forEach(obj => {
+                if (obj.imgElement && obj.imgElement.complete) {
+                    ctx.drawImage(obj.imgElement, obj.x, obj.y, obj.width, obj.height);
+                }
+            });
+            
+            // Selected object ke liye bounding box aur handles draw karta hai
+            if (selectedObject) {
+                drawBoundingBox(selectedObject);
+            }
+            // Selected object ke liye delete button manage karta hai
+            manageDeleteButton(selectedObject);
+            updateTextStyleButtons(); // Sunishchit kare ki text style buttons current selection ko reflect karte hain
+        }
+
+        /**
+         * Ek specific PDF page ko canvas par render karta hai aur uske data structure ko initialize karta hai.
+         * @param {number} pageNum - Render karne wala page number.
+         */
+        async function renderPage(pageNum) {
+            showLoading("Page render ho rahi hai...");
+            try {
+                console.log(`Page ${pageNum} render karne ki koshish kar raha hai...`); // Added log
+                // Navigate karne se pehle current page state save karta hai
+                if (pdfDoc && currentPageNum > 0 && editedPageData[currentPageNum - 1]) {
+                    saveCurrentPageState(); // Jis page se hum ja rahe hain uska state save karta hai
+                }
+
+                const pagePdf = await pdfDoc.getPage(pageNum);
+                console.log(`Page ${pageNum} prapt ho gayi. Viewport prapt kar raha hai...`); // Added log
+                const viewport = pagePdf.getViewport({ scale: scale });
+
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                // Overlay canvas dimensions ko synchronize karta hai
+                overlayCanvas.width = canvas.width;
+                overlayCanvas.height = canvas.height;
+                console.log(`Canvas dimensions set: ${canvas.width}x${canvas.height}`); // Added log
+
+                // Agar page data pehle se maujood nahi hai to initialize karta hai
+                if (!editedPageData[pageNum - 1]) {
+                    console.log(`Page ${pageNum} ke liye page data initialize kar raha hai...`); // Added log
+                    const baseCanvas = document.createElement('canvas');
+                    baseCanvas.width = canvas.width;
+                    baseCanvas.height = canvas.height;
+                    const baseCtx = baseCanvas.getContext('2d');
+
+                    const renderContext = {
+                        canvasContext: baseCtx,
+                        viewport: viewport
+                    };
+                    console.log(`PDF page ${pageNum} ko base canvas par render kar raha hai...`); // Added log
+                    await pagePdf.render(renderContext).promise;
+                    console.log(`PDF page ${pageNum} base canvas par render ho gayi.`); // Added log
+
+                    editedPageData[pageNum - 1] = {
+                        baseImageCanvas: baseCanvas,
+                        textObjects: [],
+                        imageObjects: [],
+                        history: [],
+                        historyIndex: -1
+                    };
+                    // Initial state ko history mein save karta hai
+                    saveCurrentPageState();
+                    console.log(`Page ${pageNum} ka initial state history mein save ho gaya.`); // Added log
+                } else {
+                    // Agar page data maujood hai, to uski current history state apply karta hai
+                    console.log(`Page ${pageNum} ka data pehle se maujood hai. History state apply kar raha hai...`); // Added log
+                    const page = editedPageData[pageNum - 1];
+                    if (page.history.length > 0) {
+                        await applyPageState(page.history[page.historyIndex]);
+                        console.log(`Page ${pageNum} ke liye history state apply ho gayi.`); // Added log
+                    }
+                }
+
+                currentPageNum = pageNum; // Current page number update karta hai
+                renderCurrentPageEdits(); // Is page ke sabhi current edits ko render karta hai
+                console.log(`Page ${pageNum} ke current edits render ho gaye.`); // Added log
+
+                pageInfoSpan.textContent = `Page: ${pageNum}/${totalPages}`;
+                prevPageBtn.disabled = pageNum <= 1;
+                nextPageBtn.disabled = pageNum >= totalPages;
+                updateUndoRedoButtons();
+                console.log(`Page navigation aur undo/redo buttons update ho gaye.`); // Added log
+
+            } catch (error) {
+                console.error(`Page ${pageNum} render karne mein error:`, error); // More specific error message
+                showMessageBox('Page render karne mein error. Kripya dobara koshish karein.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        /**
+         * Application ke saare states ko reset karta hai.
+         */
+        function resetApplicationState() {
+            pdfDoc = null;
+            currentPageNum = 1;
+            totalPages = 0;
+            editedPageData = []; // Sabhi stored page data clear karta hai
+
+            // UI elements ko reset karta hai
+            fileNameSpan.textContent = 'Koi file nahi chuni gayi';
+            pageInfoSpan.textContent = 'Page: 0/0';
+            prevPageBtn.disabled = true;
+            nextPageBtn.disabled = true;
+            setToolButtonsEnabled(false); // Tools ko disable karta hai
+
+            // Canvas ko clear karta hai
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            // Selected object aur text input ko clear karta hai
+            selectedObject = null;
+            manageDeleteButton(null); // Delete button ko chhupata hai
+            if (textInput && textInput.parentNode) {
+                canvas.parentNode.removeChild(textInput);
+                textInput = null;
+            }
+            currentTool = null; // Current tool ko reset karta hai
+            resetToolButtonStyles(); // Tool button styles ko reset karta hai
+            clearEraserPreview(); // Eraser preview ko clear karta hai
+            updateTextStyleToolsVisibility(); // Text styling tools ko chhupata hai
+            updateSignatureToolsVisibility(); // Signature upload option ko chhupata hai
+
+            // PDF upload input ko bhi reset karta hai taaki user dobara file choose kar sake
+            pdfUploadInput.value = '';
+        }
+
+
+        // PDF file upload input ke liye event listener
+        pdfUploadInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                console.log('Upload ke liye koi file nahi chuni gayi.'); // Added log
+                resetApplicationState(); // Agar koi file nahi chuni gayi to state reset karta hai
+                return;
+            }
+
+            console.log('File chuni gayi:', file.name, file.type, file.size, 'bytes'); // Added log
+            fileNameSpan.textContent = file.name;
+            showLoading("PDF load ho rahi hai...");
+
+            try {
+                console.log('File ko ArrayBuffer ke roop mein padh raha hai...'); // Added log
+                const arrayBuffer = await file.arrayBuffer();
+                console.log('ArrayBuffer safaltapoorvak padh liya gaya. PDF document load karne ki koshish kar raha hai...'); // Added log
+                pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                console.log('PDF document safaltapoorvak load ho gaya. Total pages:', pdfDoc.numPages); // Added log
+                totalPages = pdfDoc.numPages;
+                editedPageData = new Array(totalPages).fill(null); // Page data ke liye array initialize karta hai
+
+                console.log('Pehla page render kar raha hai...'); // Added log
+                await renderPage(1); // Pehla page render karta hai
+                setToolButtonsEnabled(true); // Editing tools enable karta hai
+                console.log('PDF load aur render ho gayi. Tools enable ho gaye.'); // Added log
+
+            } catch (error) {
+                console.error('PDF upload process mein error:', error); // More specific error message
+                showMessageBox('PDF load karne mein error. Kripya sunishchit karein ki yeh ek valid PDF file hai aur dobara koshish karein.');
+                // Error hone par state reset karta hai
+                resetApplicationState();
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Page navigation event listeners
+        prevPageBtn.addEventListener('click', async () => {
+            if (currentPageNum > 1) {
+                await renderPage(currentPageNum - 1);
+            }
+        });
+
+        nextPageBtn.addEventListener('click', async () => {
+            if (currentPageNum < totalPages) {
+                await renderPage(currentPageNum + 1);
+            }
+        });
+
+        // Undo/Redo button event listeners
+        undoBtn.addEventListener('click', undo);
+        redoBtn.addEventListener('click', redo);
+
+        // --- Drawing/Editing Interaction Functions ---
+
+        /**
+         * Overlay canvas par live eraser preview square draw karta hai.
+         * @param {number} x - Mouse ka X coordinate.
+         * @param {number} y - Mouse ka Y coordinate.
+         * @param {number} size - Eraser brush ka size.
+         */
+        function drawEraserPreview(x, y, size) {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height); // Pichli preview clear karta hai
+            overlayCtx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Semi-transparent red
+            overlayCtx.strokeStyle = 'red'; // Red border
+            overlayCtx.lineWidth = 1;
+            // Mouse position par centered square draw karta hai
+            overlayCtx.fillRect(x - size / 2, y - size / 2, size, size);
+            overlayCtx.strokeRect(x - size / 2, y - size / 2, size, size);
+        }
+
+        /**
+         * Eraser preview ko overlay canvas se clear karta hai.
+         */
+        function clearEraserPreview() {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        }
+
+
+        // Helper jo check karta hai ki mouse resize handle ke paas hai ya nahi
+        function isNearHandle(x, y, obj, handleSize = 12) { // Behtar visibility ke liye handleSize badhaya gaya
+            const handles = {
+                nw: { x: obj.x, y: obj.y },
+                ne: { x: obj.x + obj.width, y: obj.y },
+                sw: { x: obj.x, y: obj.y + obj.height },
+                se: { x: obj.x + obj.width, y: obj.y + obj.height }
+            };
+
+            for (const h in handles) {
+                if (x >= handles[h].x - handleSize && x <= handles[h].x + handleSize &&
+                    y >= handles[h].y - handleSize && y <= handles[h].y + handleSize) {
+                    return h;
+                }
+            }
+            return null;
+        }
+
+        // Selected object ke liye bounding box aur resize handles draw karta hai
+        function drawBoundingBox(obj, handleSize = 12) { // Behtar visibility ke liye handleSize badhaya gaya
+            ctx.strokeStyle = '#3b82f6'; // Blue border
+            ctx.lineWidth = 3; // Request ke anusar mota border
+            ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+
+            ctx.fillStyle = '#3b82f6'; // Blue handles
+            const handles = {
+                nw: { x: obj.x, y: obj.y },
+                ne: { x: obj.x + obj.width, y: obj.y },
+                sw: { x: obj.x, y: obj.y + obj.height },
+                se: { x: obj.x + obj.width, y: obj.y + obj.height }
+            };
+
+            for (const h in handles) {
+                ctx.fillRect(handles[h].x - handleSize / 2, handles[h].y - handleSize / 2, handleSize, handleSize);
+            }
+        }
+
+        /**
+         * Selected objects ke liye delete button overlay ko manage karta hai.
+         * @param {object|null} obj - Selected object (image ya text), ya null button chhupane ke liye.
+         */
+        function manageDeleteButton(obj) {
+            if (deleteButton) {
+                deleteButton.remove(); // Existing button hatata hai
+                deleteButton = null;
+            }
+
+            if (obj && (obj.type === 'image' || obj.type === 'text')) {
+                deleteButton = document.createElement('button');
+                deleteButton.textContent = '✖'; // 'X' character
+                deleteButton.className = 'absolute bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold cursor-pointer hover:bg-red-700 z-20';
+                deleteButton.style.position = 'absolute';
+
+                // Canvas container aur object ke sapeksh position karta hai
+                // Corner par X ko center karne ke liye button ki aadhe width/height ke liye adjust karta hai
+                deleteButton.style.left = `${obj.x + obj.width - 12}px`;
+                deleteButton.style.top = `${obj.y - 12}px`;
+
+                // Delete action ke liye event listener add karta hai
+                deleteButton.onclick = (e) => {
+                    e.stopPropagation(); // Canvas mousedown ko fire hone se rokta hai
+                    const page = editedPageData[currentPageNum - 1];
+                    if (obj.type === 'image') {
+                        page.imageObjects = page.imageObjects.filter(item => item.id !== obj.id);
+                        showMessageBox("Photo delete ho gayi!");
+                    } else if (obj.type === 'text') {
+                        page.textObjects = page.textObjects.filter(item => item.id !== obj.id);
+                        showMessageBox("Text delete ho gaya!");
+                    }
+                    selectedObject = null; // Delete karne ke baad deselect karta hai
+                    manageDeleteButton(null); // Button chhupata hai
+                    saveCurrentPageState(); // Delete karne ke baad state save karta hai
+                    renderCurrentPageEdits(); // Re-render karta hai
+                };
+
+                canvas.parentNode.appendChild(deleteButton); // Canvas container mein add karta hai
+            }
+        }
+
+        // Textarea auto-resize function
+        function autoResizeTextarea(textarea) {
+            textarea.style.height = 'auto'; // Recalculation ke liye height reset karta hai
+            textarea.style.height = textarea.scrollHeight + 'px'; // Height ko scrollHeight par set karta hai
+            // Filhaal, ise simple rakhta hai aur sirf height adjust karta hai
+        }
+
+        // Text input ko finalize karne aur textarea ko hatane ka function
+        function finalizeTextAndRemoveInput() {
+            if (textInput && textInput.parentNode) {
+                const currentPage = editedPageData[currentPageNum - 1];
+                if (textInput.value.trim() !== '') {
+                    if (selectedObject && selectedObject.type === 'text') {
+                        selectedObject.text = textInput.value.trim();
+                        // Dimensions ko recalculate karta hai
+                        const tempCtx2 = document.createElement('canvas').getContext('2d');
+                        let fontStyle2 = '';
+                        if (selectedObject.isItalic) fontStyle2 += 'italic ';
+                        if (selectedObject.isBold) fontStyle2 += 'bold ';
+                        tempCtx2.font = `${fontStyle2}${selectedObject.fontSize}px ${selectedObject.fontFamily}`;
+                        const lines2 = selectedObject.text.split('\n');
+                        let maxWidth2 = 0;
+                        lines2.forEach(line => {
+                            const textMetrics2 = tempCtx2.measureText(line);
+                            if (textMetrics2.width > maxWidth2) {
+                                maxWidth2 = textMetrics2.width;
+                            }
+                        });
+                        selectedObject.width = maxWidth2;
+                        selectedObject.height = selectedObject.fontSize * 1.2 * lines2.length;
+                        saveCurrentPageState();
+                    }
+                } else {
+                    // Agar text empty hai, to object ko remove karta hai agar yeh naya add kiya gaya tha
+                    if (selectedObject && selectedObject.type === 'text' && selectedObject.text === '') {
+                        currentPage.textObjects = currentPage.textObjects.filter(obj => obj.id !== selectedObject.id);
+                        selectedObject = null;
+                        saveCurrentPageState();
+                    }
+                }
+                canvas.parentNode.removeChild(textInput);
+                textInput = null;
+                renderCurrentPageEdits();
+            }
+        }
+
+        // Canvas par mouse down event ko handle karta hai drawing, dragging, aur resizing ke liye
+        canvas.addEventListener('mousedown', (e) => {
+            if (!pdfDoc) return;
+
+            const mousePos = getMousePos(e);
+            lastX = mousePos.x;
+            lastY = mousePos.y;
+
+            const currentPage = editedPageData[currentPageNum - 1];
+
+            // Agar text input field maujood hai, to uski content ko finalize karta hai agar click uske bahar hai
+            if (textInput) {
+                const rect = textInput.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                // Check karta hai ki click active textInput ke andar tha ya nahi (canvas ki position ke liye adjust karte hue)
+                if (mousePos.x >= (rect.left - canvasRect.left) &&
+                    mousePos.x <= (rect.right - canvasRect.left) &&
+                    mousePos.y >= (rect.top - canvasRect.top) &&
+                    mousePos.y <= (rect.bottom - canvasRect.top)) {
+                    // Click active textInput ke andar tha, kuch nahi karta, use apne events handle karne deta hai
+                    return;
+                } else {
+                    // Click active textInput ke bahar tha, uski content ko finalize karta hai
+                    finalizeTextAndRemoveInput();
+                }
+            }
+
+            // Filhaal selected object ke resize handle par click check karta hai
+            if (selectedObject) {
+                const handle = isNearHandle(mousePos.x, mousePos.y, selectedObject);
+                if (handle) {
+                    isResizing = true;
+                    resizeHandle = handle;
+                    return; // Resizing shuru karta hai, koi aur action nahi
+                }
+            }
+
+            let objectFound = false;
+            // Existing object selection (text ya image) check karta hai agar tool selection allow karta hai
+            // Overlapping hone par sabse upar wale object ko select karne ke liye piche se iterate karta hai
+            for (let i = currentPage.imageObjects.length - 1; i >= 0; i--) {
+                const obj = currentPage.imageObjects[i];
+                if (mousePos.x >= obj.x && mousePos.x <= obj.x + obj.width &&
+                    mousePos.y >= obj.y && mousePos.y <= obj.y + obj.height) {
+                    selectedObject = obj;
+                    selectedObject.type = 'image'; // Signatures ko bhi images ke roop mein treat kiya jata hai
+                    dragOffsetX = mousePos.x - obj.x;
+                    dragOffsetY = mousePos.y - obj.y;
+                    isDragging = true;
+                    objectFound = true;
+                    renderCurrentPageEdits(); // Selection dikhane ke liye re-render karta hai
+                    break; // Mil gaya aur select ho gaya, loop se bahar nikalta hai
+                }
+            }
+
+            if (!objectFound) { // Agar koi image object nahi mila, to text objects check karta hai
+                for (let i = currentPage.textObjects.length - 1; i >= 0; i--) {
+                    const obj = currentPage.textObjects[i];
+                    // Accurate hit detection ke liye width recalculate karta hai
+                    const tempCtx = document.createElement('canvas').getContext('2d');
+                    let fontStyle = '';
+                    if (obj.isItalic) fontStyle += 'italic ';
+                    if (obj.isBold) fontStyle += 'bold ';
+                    tempCtx.font = `${fontStyle}${obj.fontSize}px ${obj.fontFamily}`;
+
+                    const lines = obj.text.split('\n');
+                    let maxWidth = 0;
+                    lines.forEach(line => {
+                        const textMetrics = tempCtx.measureText(line);
+                        if (textMetrics.width > maxWidth) {
+                            maxWidth = textMetrics.width;
+                        }
+                    });
+                    obj.width = maxWidth;
+                    obj.height = obj.fontSize * 1.2 * lines.length; // Line height ke liye adjust kiya gaya
+
+                    if (mousePos.x >= obj.x && mousePos.x <= obj.x + obj.width &&
+                        mousePos.y >= obj.y && mousePos.y <= obj.y + obj.height) {
+                        selectedObject = obj;
+                        selectedObject.type = 'text';
+                        dragOffsetX = mousePos.x - obj.x;
+                        dragOffsetY = mousePos.y - obj.y;
+                        isDragging = true;
+                        objectFound = true;
+                        renderCurrentPageEdits(); // Selection dikhane ke liye re-render karta hai
+
+                        // Agar 'Add Text' tool active hai aur text object par click kiya gaya hai, to editing allow karta hai
+                        if (currentTool === 'addText') {
+                            // Multi-line editing ke liye textarea banata hai
+                            textInput = document.createElement('textarea');
+                            textInput.className = 'text-editor-input'; // Custom styles apply karta hai
+                            textInput.style.left = `${obj.x}px`;
+                            textInput.style.top = `${obj.y - obj.fontSize * 0.75}px`; // Baseline ke liye Y adjust karta hai
+                            textInput.style.width = `${obj.width}px`;
+                            textInput.style.height = `${obj.height}px`;
+                            textInput.style.fontSize = `${obj.fontSize}px`;
+                            textInput.style.color = obj.color;
+                            textInput.style.fontFamily = obj.fontFamily;
+                            textInput.style.fontWeight = obj.isBold ? 'bold' : 'normal';
+                            textInput.style.fontStyle = obj.isItalic ? 'italic' : 'normal';
+                            textInput.value = obj.text; // Existing text se pre-fill karta hai
+                            canvas.parentNode.appendChild(textInput);
+                            textInput.focus();
+                            autoResizeTextarea(textInput); // Initial resize
+
+                            textInput.addEventListener('input', () => autoResizeTextarea(textInput)); // Input par auto-resize karta hai
+                            textInput.addEventListener('blur', finalizeTextAndRemoveInput); // Blur par update karta hai
+                            textInput.addEventListener('keydown', (event) => {
+                                if (event.key === 'Enter' && !event.shiftKey) { // Save karne ke liye Enter, new line ke liye Shift+Enter
+                                    event.preventDefault(); // Default new line behavior ko rokta hai
+                                    finalizeTextAndRemoveInput();
+                                }
+                            });
+                        }
+                        break; // Mil gaya aur select ho gaya, loop se bahar nikalta hai
+                    }
+                }
+            }
+
+            if (objectFound) {
+                return; // Ek object select/drag kiya gaya tha, koi aur mousedown action nahi
+            }
+
+            // Agar koi object select ya resize nahi kiya gaya tha, to pehle se selected koi bhi object deselect karta hai
+            selectedObject = null;
+            renderCurrentPageEdits(); // Selection box clear karne aur delete button chhupane ke liye re-render karta hai
+
+
+            // Tool-specific mousedown ke saath aage badhta hai (naye objects add karna)
+            if (currentTool === 'eraser') {
+                isDrawing = true; // Eraser ke liye drawing shuru karta hai
+                clearEraserPreview(); // Active erasing shuru hone par preview clear karta hai
+                const page = editedPageData[currentPageNum - 1];
+                const baseCtx = page.baseImageCanvas.getContext('2d');
+                baseCtx.strokeStyle = 'white'; // Eraser color
+                baseCtx.lineWidth = eraserSizeSlider.value; // Selected eraser size use karta hai
+                baseCtx.lineCap = 'round';
+                baseCtx.beginPath();
+                baseCtx.moveTo(lastX, lastY);
+            }
+        });
+
+        // Canvas par mouse move event ko handle karta hai drawing, dragging, aur resizing ke liye
+        canvas.addEventListener('mousemove', (e) => {
+            if (!pdfDoc) return;
+
+            const mousePos = getMousePos(e);
+            const currentX = mousePos.x;
+            const currentY = mousePos.y;
+
+            if (currentTool === 'eraser' && !isDrawing) { // Sirf hover karte samay preview dikhata hai, actively erase karte samay nahi
+                drawEraserPreview(currentX, currentY, eraserSizeSlider.value);
+            } else {
+                clearEraserPreview(); // Agar tool change hota hai ya drawing shuru hoti hai to preview clear karta hai
+            }
+
+            if (isDragging && selectedObject) {
+                selectedObject.x = currentX - dragOffsetX;
+                selectedObject.y = currentY - dragOffsetY;
+                renderCurrentPageEdits(); // Dragging dikhane ke liye re-render karta hai
+            } else if (isResizing && selectedObject) {
+                const minSize = 10; // Resizing ke liye minimum width/height
+                let dx = currentX - lastX;
+                let dy = currentY - lastY;
+
+                let newWidth = selectedObject.width;
+                let newHeight = selectedObject.height;
+                let newX = selectedObject.x;
+                let newY = selectedObject.y;
+
+                // Handle ke aadhar par initial proposed change calculate karta hai
+                switch (resizeHandle) {
+                    case 'nw':
+                        newWidth -= dx;
+                        newHeight -= dy;
+                        newX += dx;
+                        newY += dy;
+                        break;
+                    case 'ne':
+                        newWidth += dx;
+                        newHeight -= dy;
+                        newY += dy;
+                        break;
+                    case 'sw':
+                        newWidth -= dx;
+                        newHeight += dy;
+                        newX += dx;
+                        break;
+                    case 'se':
+                        newWidth += dx;
+                        newHeight += dy;
+                        break;
+                }
+
+                // Images ke liye aspect ratio apply karta hai
+                if (selectedObject.type === 'image') {
+                    const aspectRatio = selectedObject.imgElement.naturalWidth / selectedObject.imgElement.naturalHeight;
+
+                    // Tay karta hai ki kaun sa dimension zyada mahatvapurna roop se badla gaya tha aspect ratio ko lead karne ke liye
+                    if (Math.abs(newWidth - selectedObject.width) > Math.abs(newHeight - selectedObject.height)) {
+                        newHeight = newWidth / aspectRatio;
+                    } else {
+                        newWidth = newHeight * aspectRatio;
+                    }
+
+                    // Aspect-corrected naye dimensions ke aadhar par position ko dobara adjust karta hai
+                    switch (resizeHandle) {
+                        case 'nw':
+                            newX = selectedObject.x + (selectedObject.width - newWidth);
+                            newY = selectedObject.y + (selectedObject.height - newHeight);
+                            break;
+                        case 'ne':
+                            newY = selectedObject.y + (selectedObject.height - newHeight);
+                            break;
+                        case 'sw':
+                            newX = selectedObject.x + (selectedObject.width - newWidth);
+                            break;
+                        case 'se':
+                            // SE ke liye koi position adjustment nahi, yeh anchor hai
+                            break;
+                    }
+                }
+
+                // Aspect ratio adjustment ke baad minimum size constraints apply karta hai
+                // Agar newWidth minSize se kam hai, to use clamp karta hai aur height adjust karta hai (agar image hai)
+                if (newWidth < minSize) {
+                    const oldWidth = newWidth;
+                    newWidth = minSize;
+                    if (selectedObject.type === 'image') {
+                        newHeight = newWidth / selectedObject.imgElement.naturalWidth * selectedObject.imgElement.naturalHeight;
+                    }
+                    // Left handles se resize karte samay X position adjust karta hai
+                    if (resizeHandle === 'nw' || resizeHandle === 'sw') {
+                        newX += (oldWidth - newWidth); // X ko utni matra se wapas shift karta hai jitni matra se use clamp kiya gaya tha
+                    }
+                }
+
+                // Agar newHeight minSize se kam hai, to use clamp karta hai aur width adjust karta hai (agar image hai)
+                if (newHeight < minSize) {
+                    const oldHeight = newHeight;
+                    newHeight = minSize;
+                    if (selectedObject.type === 'image') {
+                        newWidth = newHeight * selectedObject.imgElement.naturalWidth / selectedObject.imgElement.naturalHeight;
+                    }
+                    // Top handles se resize karte samay Y position adjust karta hai
+                    if (resizeHandle === 'nw' || resizeHandle === 'ne') {
+                        newY += (oldHeight - newHeight); // Y ko utni matra se wapas shift karta hai jitni matra se use clamp kiya gaya tha
+                    }
+                }
+
+                // Dimensions positive hain yeh sunishchit karne ke liye final check
+                if (newWidth < 0) newWidth = 0; // ya minSize
+                if (newHeight < 0) newHeight = 0; // ya minSize
+
+                // Selected object ki properties update karta hai
+                selectedObject.width = newWidth;
+                selectedObject.height = newHeight;
+                selectedObject.x = newX;
+                selectedObject.y = newY;
+
+                // Text ke liye, naye height ke aadhar par font size adjust karta hai
+                if (selectedObject.type === 'text') {
+                    // Naye height ke aadhar par naya font size calculate karta hai, line height ko dhyan mein rakhte hue
+                    const lines = selectedObject.text.split('\n');
+                    const newFontSize = Math.max(minSize, newHeight / (1.2 * lines.length));
+                    selectedObject.fontSize = newFontSize;
+                    fontSizeSelect.value = Math.round(newFontSize); // UI picker update karta hai
+                }
+
+                renderCurrentPageEdits(); // Resizing dikhane ke liye re-render karta hai
+            } else if (isDrawing && currentTool === 'eraser') {
+                const page = editedPageData[currentPageNum - 1];
+                const baseCtx = page.baseImageCanvas.getContext('2d');
+                baseCtx.lineTo(currentX, currentY);
+                baseCtx.stroke();
+                renderCurrentPageEdits(); // Main canvas ko re-render karta hai eraser effect dikhane ke liye
+            }
+
+            lastX = currentX;
+            lastY = currentY;
+        });
+
+        // Canvas par mouse up event ko handle karta hai drawing, dragging, aur resizing ke liye
+        canvas.addEventListener('mouseup', () => {
+            if (!pdfDoc) return;
+
+            if (isDrawing || isDragging || isResizing) {
+                saveCurrentPageState(); // Kisi bhi drawing, dragging, ya resizing ke baad state save karta hai
+            }
+
+            isDrawing = false;
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+            // Selected object tab tak selected rehta hai jab tak koi aur click ya tool change na ho
+        });
+
+        // Canvas se mouse leave event ko handle karta hai
+        canvas.addEventListener('mouseleave', () => {
+            if (isDrawing || isDragging || isResizing) {
+                saveCurrentPageState(); // Agar drawing/dragging/resizing chal rahi thi to state save karta hai
+            }
+            isDrawing = false;
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+            clearEraserPreview(); // Mouse leave par hamesha preview clear karta hai
+        });
+
+        // --- Object Management Functions ---
+
+        /**
+         * Current page ke data mein naya text object add karta hai.
+         * @param {string} text - Text content.
+         * @param {number} x - X coordinate.
+         * @param {number} y - Y coordinate.
+         * @param {string} color - Text color.
+         * @param {number} fontSize - Pixels mein font size.
+         * @param {string} fontFamily - Font family.
+         * @param {boolean} isBold - Agar text bold hai to True.
+         * @param {boolean} isItalic - Agar text italic hai to True.
+         */
+        function addTextObject(text, x, y, color, fontSize, fontFamily, isBold, isItalic) {
+            const page = editedPageData[currentPageNum - 1];
+            // Initial object dimensions ke liye text width measure karta hai
+            const tempCtx = document.createElement('canvas').getContext('2d');
+            let fontStyle = '';
+            if (isItalic) fontStyle += 'italic ';
+            if (isBold) fontStyle += 'bold ';
+            tempCtx.font = `${fontStyle}${fontSize}px ${fontFamily}`;
+            const lines = text.split('\n');
+            let maxWidth = 0;
+            lines.forEach(line => {
+                const textMetrics = tempCtx.measureText(line);
+                if (textMetrics.width > maxWidth) {
+                    maxWidth = textMetrics.width;
+                }
+            });
+
+            const newTextObject = {
+                id: generateUniqueId(),
+                x: x,
+                y: y,
+                text: text,
+                fontSize: fontSize,
+                color: color,
+                width: maxWidth || 150, // Agar text empty hai to default width
+                height: (fontSize * 1.2 * lines.length) || (fontSize * 1.5), // Default height
+                fontFamily: fontFamily,
+                isBold: isBold,
+                isItalic: isItalic
+            };
+            page.textObjects.push(newTextObject);
+            selectedObject = newTextObject; // Naye add kiye gaye text ko select karta hai
+            selectedObject.type = 'text';
+        }
+
+        /**
+         * Current page ke data mein naya image object add karta hai.
+         * @param {HTMLImageElement} imgElement - Add karne wala image element.
+         * @param {boolean} [isSignature=false] - Optional: agar yeh image specifically signature hai to true.
+         */
+        function addImageObject(imgElement, isSignature = false) {
+            const page = editedPageData[currentPageNum - 1];
+            // Aspect ratio maintain karne ke liye original dimensions prapt karta hai
+            const originalWidth = imgElement.naturalWidth;
+            const originalHeight = imgElement.naturalHeight;
+
+            // Ek default size calculate karta hai jo canvas ke andar fit ho,
+            // zaroorat padne par scale down karte hue, aspect ratio maintain karte hue.
+            const maxCanvasWidth = canvas.width * 0.8; // Canvas width ka max 80%
+            const maxCanvasHeight = canvas.height * 0.8; // Canvas height ka max 80%
+
+            let newWidth = originalWidth;
+            let newHeight = originalHeight;
+
+            // Agar image bahut chaudi hai to scale down karta hai
+            if (newWidth > maxCanvasWidth) {
+                newHeight = (maxCanvasWidth / newWidth) * newHeight;
+                newWidth = maxCanvasWidth;
+            }
+            // Agar image bahut lambi hai to scale down karta hai (potential width scaling ke baad)
+            if (newHeight > maxCanvasHeight) {
+                newWidth = (maxCanvasHeight / newHeight) * newWidth;
+                newHeight = maxCanvasHeight;
+            }
+
+            // Image ko canvas par center karta hai
+            const x = (canvas.width - newWidth) / 2;
+            const y = (canvas.height - newHeight) / 2;
+
+            const newImageObject = {
+                id: generateUniqueId(),
+                x: x,
+                y: y,
+                width: newWidth,
+                height: newHeight,
+                imgElement: imgElement,
+                type: 'image', // Explicitly type set karta hai
+                isSignature: isSignature // Signatures ke liye flag add karta hai
+            };
+            page.imageObjects.push(newImageObject);
+            selectedObject = newImageObject; // Naye add kiye gaye image ko select karta hai
+            selectedObject.type = 'image'; // Consistency ke liye type re-confirm karta hai
+        }
+
+        // --- Tool Selection Event Listeners ---
+
+        toolEraserBtn.addEventListener('click', () => {
+            // Tools switch karne se pehle kisi bhi active text input ko finalize karta hai
+            finalizeTextAndRemoveInput();
+
+            resetToolButtonStyles(); // Dusre buttons se active state hatata hai
+            toolEraserBtn.classList.add('active'); // Current button ko active set karta hai
+            currentTool = 'eraser'; // Current tool set karta hai
+            selectedObject = null; // Tools change karte samay kisi bhi object ko deselect karta hai
+            renderCurrentPageEdits(); // Selection box clear karne aur delete button chhupane ke liye re-render karta hai
+            clearEraserPreview(); // Agar active hai to eraser preview clear karta hai
+            showMessageBox("Eraser tool active. Canvas par text erase karne ke liye drag karein.");
+            updateTextStyleToolsVisibility(); // Text style options chhupata hai
+            updateSignatureToolsVisibility(); // Signature upload option chhupata hai
+        });
+
+        // Eraser size slider ke liye event listener
+        eraserSizeSlider.addEventListener('input', (event) => { // Event parameter add kiya gaya
+            eraserSizeValueSpan.textContent = `${eraserSizeSlider.value}px`;
+            // Agar eraser tool active hai, to live preview size ko turant update karta hai
+            if (currentTool === 'eraser') {
+                const mousePos = getMousePos(event); // Preview update karne ke liye current mouse position prapt karta hai
+                drawEraserPreview(mousePos.x, mousePos.y, eraserSizeSlider.value);
+            }
+        });
+
+        toolAddTextBtn.addEventListener('click', () => {
+            // Naya text input banane se pehle kisi bhi existing textInput ko finalize karta hai
+            finalizeTextAndRemoveInput();
+
+            resetToolButtonStyles();
+            toolAddTextBtn.classList.add('active');
+            currentTool = 'addText';
+            selectedObject = null; // Kisi bhi pichle object ko deselect karta hai
+
+            // Ek naya text object turant ek default location par banata hai
+            const initialText = ''; // Empty text se shuru karta hai
+            // Agar initialText empty hai to centering ke liye default width calculate karta hai
+            const initialDefaultWidth = 150; // Yeh addTextObject mein default width se match karta hai
+            const defaultX = (canvas.width / 2) - (initialDefaultWidth / 2); // Horizontally center karta hai
+            const defaultY = canvas.height * 0.4; // Top se 40%, "thoda upar main"
+
+            addTextObject(initialText, defaultX, defaultY, textColorPicker.value, parseInt(fontSizeSelect.value), fontFamilySelect.value, boldBtn.classList.contains('active'), italicBtn.classList.contains('active'));
+
+            // addTextObject function pehle hi selectedObject set kar deta hai, lekin sunishchit kare ki uska type set hai
+            const currentPage = editedPageData[currentPageNum - 1]; // Current page data prapt karta hai
+            selectedObject = currentPage.textObjects[currentPage.textObjects.length - 1];
+            selectedObject.type = 'text'; // Consistency ke liye type set karta hai
+
+            // Naye text ko edit karne ke liye textarea banata hai
+            textInput = document.createElement('textarea');
+            textInput.className = 'text-editor-input';
+            textInput.style.left = `${selectedObject.x}px`;
+            textInput.style.top = `${selectedObject.y - selectedObject.fontSize * 0.75}px`;
+            textInput.style.width = `${selectedObject.width}px`; // Object ki width use karta hai
+            textInput.style.height = `${selectedObject.height}px`; // Object ki height use karta hai
+            textInput.style.fontSize = `${selectedObject.fontSize}px`;
+            textInput.style.color = selectedObject.color;
+            textInput.style.fontFamily = selectedObject.fontFamily;
+            textInput.style.fontWeight = selectedObject.isBold ? 'bold' : 'normal';
+            textInput.style.fontStyle = selectedObject.isItalic ? 'italic' : 'normal';
+            textInput.placeholder = 'Text daalein...';
+            canvas.parentNode.appendChild(textInput);
+            textInput.focus();
+            autoResizeTextarea(textInput);
+
+            textInput.addEventListener('input', () => autoResizeTextarea(textInput));
+            textInput.addEventListener('blur', finalizeTextAndRemoveInput);
+            textInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    finalizeTextAndRemoveInput();
+                }
+            });
+
+            renderCurrentPageEdits(); // Naye text box selection dikhane ke liye render karta hai
+            clearEraserPreview(); // Agar active hai to eraser preview clear karta hai
+            updateTextStyleToolsVisibility(); // Text style options dikhata hai
+            updateSignatureToolsVisibility(); // Signature upload option chhupata hai
+        });
+
+        // Text color picker ke liye event listener
+        textColorPicker.addEventListener('input', () => {
+            if (selectedObject && selectedObject.type === 'text') {
+                selectedObject.color = textColorPicker.value;
+                renderCurrentPageEdits();
+                saveCurrentPageState(); // Color change karne ke baad state save karta hai
+            }
+        });
+
+        // Font size selection ke liye event listener
+        fontSizeSelect.addEventListener('change', () => {
+            if (selectedObject && selectedObject.type === 'text') {
+                selectedObject.fontSize = parseInt(fontSizeSelect.value);
+                // Font size change hone ke baad width recalculate karta hai
+                const tempCtx = document.createElement('canvas').getContext('2d');
+                let fontStyle = '';
+                if (selectedObject.isItalic) fontStyle += 'italic ';
+                if (selectedObject.isBold) fontStyle += 'bold ';
+                tempCtx.font = `${fontStyle}${selectedObject.fontSize}px ${selectedObject.fontFamily}`;
+
+                const lines = selectedObject.text.split('\n');
+                let maxWidth = 0;
+                lines.forEach(line => {
+                    const textMetrics = tempCtx.measureText(line);
+                    if (textMetrics.width > maxWidth) {
+                        maxWidth = textMetrics.width;
+                    }
+                });
+                selectedObject.width = maxWidth;
+                selectedObject.height = selectedObject.fontSize * 1.2 * lines.length; // Line height ke liye adjust kiya gaya
+
+                renderCurrentPageEdits();
+                saveCurrentPageState(); // Font size change karne ke baad state save karta hai
+            }
+        });
+
+        // Font family selection ke liye event listener
+        fontFamilySelect.addEventListener('change', () => {
+            currentFontFamily = fontFamilySelect.value; // Naye text ke liye global style update karta hai
+            if (selectedObject && selectedObject.type === 'text') {
+                selectedObject.fontFamily = fontFamilySelect.value;
+                renderCurrentPageEdits();
+                saveCurrentPageState(); // Font family change karne ke baad state save karta hai
+            }
+        });
+
+        // Bold button ke liye event listener
+        boldBtn.addEventListener('click', () => {
+            currentIsBold = !currentIsBold; // Naye text ke liye global style toggle karta hai
+            if (selectedObject && selectedObject.type === 'text') {
+                selectedObject.isBold = !selectedObject.isBold;
+                renderCurrentPageEdits();
+                saveCurrentPageState(); // Bold status change karne ke baad state save karta hai
+            }
+            updateTextStyleButtons(); // Button ki active state update karta hai
+        });
+
+        // Italic button ke liye event listener
+        italicBtn.addEventListener('click', () => {
+            currentIsItalic = !currentIsItalic; // Naye text ke liye global style toggle karta hai
+            if (selectedObject && selectedObject.type === 'text') {
+                selectedObject.isItalic = !selectedObject.isItalic;
+                renderCurrentPageEdits();
+                saveCurrentPageState(); // Italic status change karne ke baad state save karta hai
+            }
+            updateTextStyleButtons(); // Button ki active state update karta hai
+        });
+
+        // General image file upload input ke liye event listener
+        imageUploadInput.addEventListener('change', (event) => {
+            // Image add karne se pehle kisi bhi active text input ko finalize karta hai
+            finalizeTextAndRemoveInput();
+            resetToolButtonStyles(); // Kisi bhi active tool ko clear karta hai
+            currentTool = null; // General image upload ke baad koi specific tool active nahi
+
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image(); // Ek naya Image object banata hai
+                    img.onload = () => {
+                        addImageObject(img); // Image ko directly canvas par add karta hai
+                        saveCurrentPageState(); // Image add karne ke baad state save karta hai
+                        showMessageBox("Photo upload ho gayi aur PDF mein add ho gayi! Aap ise move aur resize kar sakte hain.");
+                        renderCurrentPageEdits(); // Naye image aur selection dikhane ke liye re-render karta hai
+                    };
+                    img.src = e.target.result; // Image source ko base64 data URL par set karta hai
+                };
+                reader.readAsDataURL(file); // File ko data URL ke roop mein padhta hai
+            }
+            updateTextStyleToolsVisibility(); // Text style options chhupata hai
+            updateSignatureToolsVisibility(); // Signature upload option chhupata hai
+        });
+
+        // --- Signature add karna (image upload ke roop mein) functionality ---
+        toolAddSignatureBtn.addEventListener('click', () => {
+            // Tools switch karne se pehle kisi bhi active text input ko finalize karta hai
+            finalizeTextAndRemoveInput();
+
+            resetToolButtonStyles();
+            toolAddSignatureBtn.classList.add('active');
+            currentTool = 'addSignature';
+            selectedObject = null; // Kisi bhi object ko deselect karta hai
+            renderCurrentPageEdits(); // Selection box clear karne aur delete button chhupane ke liye re-render karta hai
+            clearEraserPreview(); // Agar active hai to eraser preview clear karta hai
+
+            // Hidden signature upload input par click trigger karta hai
+            signatureUploadInput.click();
+
+            showMessageBox("Kripya ek signature image upload karein. Aap ise kisi bhi dusri photo ki tarah move, resize aur remove kar sakte hain.");
+            updateTextStyleToolsVisibility(); // Text style options chhupata hai
+            updateSignatureToolsVisibility(); // Signature upload option dikhata hai
+        });
+
+        // Signature file upload input ke liye event listener (ab toolAddSignatureBtn click se juda hua)
+        signatureUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        addImageObject(img, true); // Image add karta hai, use explicitly signature ke roop mein mark karta hai
+                        saveCurrentPageState();
+                        showMessageBox("Signature image add ho gayi! Aap ise move, resize aur remove kar sakte hain.");
+                        renderCurrentPageEdits();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            // File selection ke baad, tool ko reset karta hai ya agar chahe to active rakhta hai
+            toolAddSignatureBtn.classList.remove('active'); // Upload ke baad button ko deactivate karta hai
+            currentTool = null; // Koi active tool nahi ya naye add kiye gaye image ko select karta hai
+            updateSignatureToolsVisibility(); // Signature upload option chhupata hai
+        });
+
+        // --- PDF Download Function ---
+
+        // Download Edited PDF button ke liye event listener
+        downloadPdfBtn.addEventListener('click', async () => {
+            if (!pdfDoc || editedPageData.length === 0) {
+                showMessageBox("Kripya pehle ek PDF upload karein aur kuch edits karein.");
+                return;
+            }
+
+            // Download karne se pehle kisi bhi active text input ko finalize karta hai
+            finalizeTextAndRemoveInput();
+
+            showLoading("Edited PDF generate ho rahi hai...");
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'pt', 'a4'); // A4 portrait (default) se initialize karta hai
+
+                // Output PDF ke liye sahi PDF page size set karne ke liye original PDF page dimensions prapt karta hai
+                // Yeh sunishchit karta hai ki output PDF original aspect ratio aur size maintain karta hai.
+                const firstPagePdf = await pdfDoc.getPage(1);
+                const originalViewport = firstPagePdf.getViewport({ scale: 1 });
+                const originalWidth = originalViewport.width;
+                const originalHeight = originalViewport.height;
+
+                // jsPDF document size ko original PDF ke pehle page dimensions se match karne ke liye adjust karta hai
+                doc.internal.pageSize.width = originalWidth;
+                doc.internal.pageSize.height = originalHeight;
+
+                for (let i = 0; i < totalPages; i++) {
+                    const pageData = editedPageData[i];
+                    if (pageData) {
+                        // Is page ke final state ko render karne ke liye ek temporary canvas banata hai
+                        const tempRenderCanvas = document.createElement('canvas');
+                        tempRenderCanvas.width = pageData.baseImageCanvas.width;
+                        tempRenderCanvas.height = pageData.baseImageCanvas.height;
+                        const tempRenderCtx = tempRenderCanvas.getContext('2d');
+
+                        // Base image (PDF render + eraser marks) draw karta hai
+                        tempRenderCtx.drawImage(pageData.baseImageCanvas, 0, 0);
+
+                        // Sabhi text objects draw karta hai
+                        pageData.textObjects.forEach(obj => {
+                            let fontStyle = '';
+                            if (obj.isItalic) fontStyle += 'italic ';
+                            if (obj.isBold) fontStyle += 'bold ';
+                            tempRenderCtx.font = `${fontStyle}${obj.fontSize}px ${obj.fontFamily}`;
+                            tempRenderCtx.fillStyle = obj.color;
+                            // Text ko new lines se split karta hai aur har line draw karta hai
+                            const lines = obj.text.split('\n'); // Sudhara gaya: sunishchit kare ki lines yahan defined hai
+                            lines.forEach((line, index) => {
+                                tempRenderCtx.fillText(line, obj.x, obj.y + obj.fontSize * 0.75 + (obj.fontSize * 1.2 * index));
+                            });
+                        });
+
+                        // Sabhi image objects (signatures shamil hain) draw karta hai
+                        pageData.imageObjects.forEach(obj => {
+                            if (obj.imgElement && obj.imgElement.complete) {
+                                tempRenderCtx.drawImage(obj.imgElement, obj.x, obj.y, obj.width, obj.height);
+                            }
+                        });
+                        
+                        // Temporary canvas content ko JPEG image data mein convert karta hai
+                        const imgData = tempRenderCanvas.toDataURL('image/jpeg', 0.9);
+
+                        // Pehle page ke baad har page ke liye PDF mein ek naya page add karta hai
+                        if (i > 0) {
+                            doc.addPage();
+                        }
+                        // Image data ko PDF mein add karta hai, PDF page dimensions ke fit hone ke liye scaled
+                        doc.addImage(imgData, 'JPEG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+                    }
+                }
+
+                doc.save('edited_document.pdf'); // Generated PDF file save karta hai
+                showMessageBox("Edited PDF safaltapoorvak download ho gayi!");
+
+            } catch (error) {
+                console.error('PDF generate karne mein error:', error);
+                showMessageBox('PDF generate karne mein error. Details ke liye console check karein.');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Initial state setup: PDF load hone tak tool buttons disable karta hai
+        setToolButtonsEnabled(false);
+        updateTextStyleToolsVisibility(); // Sunishchit kare ki text styling tools load hone par hidden hain
+        updateSignatureToolsVisibility(); // Sunishchit kare ki signature upload load hone par hidden hai
+    </script>
+</body>
+</html>
